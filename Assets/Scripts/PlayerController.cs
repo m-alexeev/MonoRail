@@ -25,6 +25,8 @@
         private bool _isAccelerating = false;
         private Vector3 _targetPosition;
         private Vector3 _velocity;
+
+        private Terrain _terrain;
         
         //Height Settings
         private float _currentHeight;
@@ -44,6 +46,9 @@
             // Initialize camera speed to moveSpeed
             _currentSpeed = moveSpeed;
             
+            // Get terrain to extract bounding box
+            _terrain = GameObject.FindGameObjectWithTag("Terrain").GetComponent<Terrain>();
+            
             // Initilize minimum height to be 80% of cameraHeight
             _minimumHeight = cameraHeight * 0.8f;
             _currentHeight = cameraHeight;
@@ -56,7 +61,7 @@
 
         // Update is called once per frame
         void Update() {
-            GetInput();
+            CalculateMovePosition();
 
             float targetSpeed = _isAccelerating ? fastMoveSpeed : moveSpeed;
             Accelerate(targetSpeed);
@@ -75,15 +80,47 @@
             _playerControls.Gameplay.Disable();
         }
 
-        private void GetInput() {
+        private void CalculateMovePosition() {
             Vector2 moveVector = _playerControls.Gameplay.Move.ReadValue<Vector2>();
             // Calculate the target position based on the input
             _targetPosition += new Vector3(moveVector.x, 0, moveVector.y).normalized * _currentSpeed * Time.deltaTime;
             _targetPosition.y = _currentHeight;
             
+            // Get the bounds of the terrain
+            Bounds terrainBounds = _terrain.terrainData.bounds;
+
+            // Transform the bounds to world space
+            Vector3 terrainCenter= _terrain.transform.position + terrainBounds.center;
+            Vector3 terrainSize= terrainBounds.size;
+            
+            // Clamp Player movement to be within the terrain bounds
+            ClampMovement(terrainSize, terrainCenter);
+                        
             _isAccelerating = _playerControls.Gameplay.FastMove.ReadValue<float>() > 0;
         }
 
+        private void ClampMovement(Vector3 terrainSize, Vector3 terrainCenter) {
+            Vector3 start = terrainCenter - (terrainSize / 2);
+            Vector3 end = terrainCenter + (terrainSize / 2);
+            Debug.Log(terrainCenter + " " + terrainSize + start + " " + end + " " + _targetPosition);
+            if (_targetPosition.x < start.x) {
+                _targetPosition.x = start.x;
+            }
+
+            if (_targetPosition.z < start.z) {
+                _targetPosition.z = start.z;
+            }
+
+            if (_targetPosition.x > end.x) {
+                _targetPosition.x = end.x;
+            }
+
+            if (_targetPosition.z > end.z) {
+                _targetPosition.z = end.z;
+            }
+        }
+        
+        
         private void Accelerate(float targetSpeed) {
             // Either accelerate or decelerate to the target speed
             if (targetSpeed > _currentSpeed) {
