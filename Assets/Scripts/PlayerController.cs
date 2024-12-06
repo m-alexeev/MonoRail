@@ -100,24 +100,13 @@
         }
 
         private void ClampMovement(Vector3 terrainSize, Vector3 terrainCenter) {
+            // Calculate the bounding box from terrain center and dimensions
             Vector3 start = terrainCenter - (terrainSize / 2);
             Vector3 end = terrainCenter + (terrainSize / 2);
-            Debug.Log(terrainCenter + " " + terrainSize + start + " " + end + " " + _targetPosition);
-            if (_targetPosition.x < start.x) {
-                _targetPosition.x = start.x;
-            }
-
-            if (_targetPosition.z < start.z) {
-                _targetPosition.z = start.z;
-            }
-
-            if (_targetPosition.x > end.x) {
-                _targetPosition.x = end.x;
-            }
-
-            if (_targetPosition.z > end.z) {
-                _targetPosition.z = end.z;
-            }
+            
+            // Clamp target position to the start and end of the bounding box
+            _targetPosition.x = Mathf.Clamp(_targetPosition.x, start.x, end.x);
+            _targetPosition.z = Mathf.Clamp(_targetPosition.z, start.z, end.z);
         }
         
         
