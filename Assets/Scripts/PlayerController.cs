@@ -1,3 +1,4 @@
+    using System;
     using UnityEngine;
 
     public class PlayerController : MonoBehaviour{
@@ -7,7 +8,7 @@
         public float acceleration;
 
         
-        [Space(20)]
+        [Space(10)]
         [Header("Zoom")]
         public float zoomSpeed;
         public float defaultCameraHeight;
@@ -15,6 +16,11 @@
         public float macroViewHeight; 
         public float cameraSmoothing = 0.3f;
         
+        [Space(10)]
+        [Header("Rotate")]
+        public float maxPitchUp;
+        public float maxPitchDown;
+        public float maxYaw;
         
         // General settings
         private Transform _spawnPoint;
@@ -27,15 +33,21 @@
         private Vector3 _velocity;
 
         private Terrain _terrain;
+        private Camera _camera;
         
         //Height Settings
         private float _currentHeight;
         private float _targetHeight;
         
+        //Rotate Settings
+        private float _pitch;
+        private float _yaw;
+        
         // Control values
         private Vector2 _moveInputVector;
         private bool _isAccelerating;
         private Vector2 _cameraZoomInputVector;
+        private Vector2 _cameraRotateInputVector;
         
         private void OnEnable() {
             if (_playerControls == null) {
@@ -57,6 +69,12 @@
             // Initialize minimum height to be 80% of cameraHeight
             _currentHeight = defaultCameraHeight;
             _targetHeight = _currentHeight;
+
+            _camera = GameObject.Find("Main Camera").GetComponent<Camera>();
+            Debug.Log(_camera);
+            // Default yaw and pitch values
+            _yaw = 0f;
+            _pitch = 70f;
             
             // Initialize spawn point
             _spawnPoint = GameObject.FindWithTag("Respawn").GetComponent<Transform>();
@@ -75,13 +93,13 @@
             if (_cameraZoomInputVector.y != 0) {
                 ZoomCamera();
             }
+
+            if (!_cameraRotateInputVector.Equals(Vector2.zero)) {
+                RotateCamera();
+            }
             Accelerate();
         }
-
-        private void FixedUpdate() {
-            // CalculateCameraHeight();
-        }
-
+        
         private void LateUpdate() {
             //TODO: Check if _targetPosition is close instead of equal
             transform.position = Vector3.SmoothDamp(transform.position, _targetPosition, ref _velocity, cameraSmoothing);
@@ -96,12 +114,28 @@
             _isAccelerating = _playerControls.Gameplay.FastMove.ReadValue<float>() > 0;
             // Normalize camera input vector to only capture direction and not scroll speed
             _cameraZoomInputVector= _playerControls.Gameplay.Zoom.ReadValue<Vector2>().normalized;
+            _cameraRotateInputVector = _playerControls.Gameplay.Look.ReadValue<Vector2>();
         }
 
         private void CalculateMovePosition() {
-            // Calculate the target position based on the input
-            _targetPosition += new Vector3(_moveInputVector.x, 0, _moveInputVector.y).normalized * _currentSpeed * Time.deltaTime;
-
+            // Calculate the target position based on the input and camera rotation
+            Vector3 cameraForward = _camera.transform.forward;
+            Vector3 cameraRight = _camera.transform.right;
+            
+            cameraForward.y = 0;
+            cameraRight.y = 0;
+            // If camera is pointing straight down, use the up vector instead 
+            if (cameraForward.Equals(Vector3.zero)) {
+                cameraForward = _camera.transform.up;
+            }
+            
+            cameraForward.Normalize();
+            cameraRight.Normalize();
+            
+            Vector3 moveDirection =  cameraForward * _moveInputVector.y + cameraRight * _moveInputVector.x;
+            
+            _targetPosition += moveDirection.normalized * _currentSpeed * Time.deltaTime;
+            
             // Get the bounds of the terrain
             Bounds terrainBounds = _terrain.terrainData.bounds;
 
@@ -144,7 +178,6 @@
         }
 
         private void ZoomCamera() {
-            // Zoom in
             // Calculate the target position based on the input
             _targetHeight += _cameraZoomInputVector.y * zoomSpeed * Time.deltaTime;
             
@@ -154,5 +187,16 @@
             // Update the camera target position
             _targetPosition.y = _targetHeight;
         }
+
+        private void RotateCamera() {
+            // Ignore small movements 
+            _yaw += _cameraRotateInputVector.x;
+            _pitch -= _cameraRotateInputVector.y;
         
+            // Clamp values to not let player spin camera too much
+            // _yaw = Mathf.Clamp(_yaw, -maxYaw, maxYaw);
+            // _pitch = Mathf.Clamp(_pitch, maxPitchDown, maxPitchUp);
+            
+            _camera.transform.eulerAngles = new Vector3(_pitch, _yaw, 0f);
+        }
     }
