@@ -489,14 +489,15 @@ MonoBehaviour:
   moveSpeed: 50
   fastMoveSpeed: 100
   acceleration: 300
-  zoomSpeed: 120
+  zoomSpeed: 500
   defaultCameraHeight: 50
   mapViewHeight: 150
   macroViewHeight: 30
   cameraSmoothing: 0.15
-  maxPitchUp: 45
+  maxPitchUp: -10
   maxPitchDown: 90
   maxYaw: 70
+  mouseSensitivity: 0.3
 --- !u!4 &1786333858
 Transform:
   m_ObjectHideFlags: 0

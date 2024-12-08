@@ -21,6 +21,8 @@
         public float maxPitchUp;
         public float maxPitchDown;
         public float maxYaw;
+        [Range(0, 5)]
+        public float mouseSensitivity;
         
         // General settings
         private Transform _spawnPoint;
@@ -125,16 +127,15 @@
             cameraForward.y = 0;
             cameraRight.y = 0;
             // If camera is pointing straight down, use the up vector instead 
-            if (cameraForward.Equals(Vector3.zero)) {
+            if (cameraForward == Vector3.zero) {
                 cameraForward = _camera.transform.up;
             }
             
             cameraForward.Normalize();
             cameraRight.Normalize();
             
-            Vector3 moveDirection =  cameraForward * _moveInputVector.y + cameraRight * _moveInputVector.x;
-            
-            _targetPosition += moveDirection.normalized * _currentSpeed * Time.deltaTime;
+            Vector3 moveDirection =  (cameraForward * _moveInputVector.y + cameraRight * _moveInputVector.x).normalized;
+            _targetPosition += moveDirection * _currentSpeed * Time.deltaTime;
             
             // Get the bounds of the terrain
             Bounds terrainBounds = _terrain.terrainData.bounds;
@@ -179,7 +180,7 @@
 
         private void ZoomCamera() {
             // Calculate the target position based on the input
-            _targetHeight += _cameraZoomInputVector.y * zoomSpeed * Time.deltaTime;
+            _targetHeight += -_cameraZoomInputVector.y * zoomSpeed * Time.deltaTime;
             
             // Clamp Height 
             _targetHeight = Mathf.Clamp(_targetHeight, macroViewHeight, mapViewHeight);
@@ -190,12 +191,12 @@
 
         private void RotateCamera() {
             // Ignore small movements 
-            _yaw += _cameraRotateInputVector.x;
-            _pitch -= _cameraRotateInputVector.y;
+            _yaw += _cameraRotateInputVector.x * mouseSensitivity;
+            _pitch -= _cameraRotateInputVector.y * mouseSensitivity;
         
             // Clamp values to not let player spin camera too much
-            // _yaw = Mathf.Clamp(_yaw, -maxYaw, maxYaw);
-            // _pitch = Mathf.Clamp(_pitch, maxPitchDown, maxPitchUp);
+            _yaw = Mathf.Clamp(_yaw, -maxYaw, maxYaw);
+            _pitch = Mathf.Clamp(_pitch, maxPitchUp, maxPitchDown);
             
             _camera.transform.eulerAngles = new Vector3(_pitch, _yaw, 0f);
         }
