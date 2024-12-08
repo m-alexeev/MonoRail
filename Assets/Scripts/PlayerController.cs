@@ -1,19 +1,20 @@
-    using System;
     using UnityEngine;
-    using UnityEngine.InputSystem;
 
     public class PlayerController : MonoBehaviour{
         [Header("Speed")]
         public float moveSpeed;
         public float fastMoveSpeed;
         public float acceleration;
-        [Space(20)]
-        [Header("Camera Height")]
-        public float cameraHeight;
-        public float maximumHeight;
-        public float cameraSmoothing = 0.3f;
 
+        
+        [Space(20)]
         [Header("Zoom")]
+        public float zoomSpeed;
+        public float defaultCameraHeight;
+        public float mapViewHeight;
+        public float macroViewHeight; 
+        public float cameraSmoothing = 0.3f;
+        
         
         // General settings
         private Transform _spawnPoint;
@@ -22,7 +23,6 @@
         
         // Speed controls 
         private float _currentSpeed;
-        private bool _isAccelerating = false;
         private Vector3 _targetPosition;
         private Vector3 _velocity;
 
@@ -30,7 +30,12 @@
         
         //Height Settings
         private float _currentHeight;
-        private float _minimumHeight;
+        private float _targetHeight;
+        
+        // Control values
+        private Vector2 _moveInputVector;
+        private bool _isAccelerating;
+        private Vector2 _cameraZoomInputVector;
         
         private void OnEnable() {
             if (_playerControls == null) {
@@ -49,26 +54,32 @@
             // Get terrain to extract bounding box
             _terrain = GameObject.FindGameObjectWithTag("Terrain").GetComponent<Terrain>();
             
-            // Initilize minimum height to be 80% of cameraHeight
-            _minimumHeight = cameraHeight * 0.8f;
-            _currentHeight = cameraHeight;
+            // Initialize minimum height to be 80% of cameraHeight
+            _currentHeight = defaultCameraHeight;
+            _targetHeight = _currentHeight;
             
             // Initialize spawn point
             _spawnPoint = GameObject.FindWithTag("Respawn").GetComponent<Transform>();
-            transform.position = new Vector3(_spawnPoint.transform.position.x, _currentHeight, _spawnPoint.transform.position.z);
+            transform.position = new Vector3(_spawnPoint.transform.position.x, _targetHeight, _spawnPoint.transform.position.z);
             _targetPosition = transform.position;
         }
 
         // Update is called once per frame
         void Update() {
-            CalculateMovePosition();
-
-            float targetSpeed = _isAccelerating ? fastMoveSpeed : moveSpeed;
-            Accelerate(targetSpeed);
+            GetInput();
+            if (_moveInputVector.x != 0 || _moveInputVector.y != 0) {
+                CalculateMovePosition();
+            }
+        
+            // Zoom only works on up / down scroll wheel direction
+            if (_cameraZoomInputVector.y != 0) {
+                ZoomCamera();
+            }
+            Accelerate();
         }
 
         private void FixedUpdate() {
-            CalculateCameraHeight();
+            // CalculateCameraHeight();
         }
 
         private void LateUpdate() {
@@ -80,23 +91,26 @@
             _playerControls.Gameplay.Disable();
         }
 
+        private void GetInput() {
+            _moveInputVector = _playerControls.Gameplay.Move.ReadValue<Vector2>();
+            _isAccelerating = _playerControls.Gameplay.FastMove.ReadValue<float>() > 0;
+            // Normalize camera input vector to only capture direction and not scroll speed
+            _cameraZoomInputVector= _playerControls.Gameplay.Zoom.ReadValue<Vector2>().normalized;
+        }
+
         private void CalculateMovePosition() {
-            Vector2 moveVector = _playerControls.Gameplay.Move.ReadValue<Vector2>();
             // Calculate the target position based on the input
-            _targetPosition += new Vector3(moveVector.x, 0, moveVector.y).normalized * _currentSpeed * Time.deltaTime;
-            _targetPosition.y = _currentHeight;
-            
+            _targetPosition += new Vector3(_moveInputVector.x, 0, _moveInputVector.y).normalized * _currentSpeed * Time.deltaTime;
+
             // Get the bounds of the terrain
             Bounds terrainBounds = _terrain.terrainData.bounds;
 
             // Transform the bounds to world space
-            Vector3 terrainCenter= _terrain.transform.position + terrainBounds.center;
-            Vector3 terrainSize= terrainBounds.size;
-            
+            Vector3 terrainCenter = _terrain.transform.position + terrainBounds.center;
+            Vector3 terrainSize = terrainBounds.size;
+
             // Clamp Player movement to be within the terrain bounds
             ClampMovement(terrainSize, terrainCenter);
-                        
-            _isAccelerating = _playerControls.Gameplay.FastMove.ReadValue<float>() > 0;
         }
 
         private void ClampMovement(Vector3 terrainSize, Vector3 terrainCenter) {
@@ -110,7 +124,9 @@
         }
         
         
-        private void Accelerate(float targetSpeed) {
+        private void Accelerate() {
+            float targetSpeed = _isAccelerating ? fastMoveSpeed : moveSpeed;
+
             // Either accelerate or decelerate to the target speed
             if (targetSpeed > _currentSpeed) {
                 _currentSpeed += acceleration * Time.deltaTime;
@@ -127,16 +143,16 @@
             }
         }
 
-        private void CalculateCameraHeight() {
-            RaycastHit hit;
-            if (Physics.Raycast(transform.position, Vector3.down, out hit, cameraHeight)) {
-                if (hit.distance < _minimumHeight) {
-                    _currentHeight += _minimumHeight - hit.distance;
-                }
-            }
-            else {
-                _currentHeight = cameraHeight;
-            }
+        private void ZoomCamera() {
+            // Zoom in
+            // Calculate the target position based on the input
+            _targetHeight += _cameraZoomInputVector.y * zoomSpeed * Time.deltaTime;
+            
+            // Clamp Height 
+            _targetHeight = Mathf.Clamp(_targetHeight, macroViewHeight, mapViewHeight);
+            
+            // Update the camera target position
+            _targetPosition.y = _targetHeight;
         }
         
     }
