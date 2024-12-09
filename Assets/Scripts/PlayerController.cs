@@ -1,7 +1,8 @@
     using System;
     using UnityEngine;
 
-    public class PlayerController : MonoBehaviour{
+    public class PlayerController : MonoBehaviour
+    {
         [Header("Speed")]
         public float moveSpeed;
         public float fastMoveSpeed;
@@ -42,6 +43,7 @@
         private float _targetHeight;
         
         //Rotate Settings
+        private const int DefaultCamPitch = 70;
         private float _pitch;
         private float _yaw;
         
@@ -73,10 +75,10 @@
             _targetHeight = _currentHeight;
 
             _camera = GameObject.Find("Main Camera").GetComponent<Camera>();
-            Debug.Log(_camera);
+
             // Default yaw and pitch values
             _yaw = 0f;
-            _pitch = 70f;
+            _pitch = DefaultCamPitch;
             
             // Initialize spawn point
             _spawnPoint = GameObject.FindWithTag("Respawn").GetComponent<Transform>();
